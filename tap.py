@@ -136,6 +136,8 @@ def tap_test_parent(emit, num, test: Test, timeout_secs: int|None):
     emit(
         fl, "int status;",
         fl, "waitpid(pid, &status, 0);",
+        nl,
+        nl,
         fl, "if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {",
         fl, indent,
         tap_ok(True, num, test.name()),
@@ -157,9 +159,11 @@ def tap_test_parent(emit, num, test: Test, timeout_secs: int|None):
             fl, tap_ok(False, num, test.name(), "killed by signal %d", "WTERMSIG(status)")
         )
     emit(
-        fl, dedent, "} else {", indent,
+        fl, dedent, "} /* /WIFSIGNALED */ else {", indent,
         fl, tap_ok(False, num, test.name(), "unknown failure"),
-        fl, dedent, "} /* /tap_test_parent */",
+        fl, dedent, "} /* end unknown failure */",
+        fl, dedent, "}",
+        fl, 'unlink(tmpfile);',
     )
 
 
@@ -178,6 +182,9 @@ def tap_test_call(emit, num: int, test: Test, timeout_secs: int|None):
         fl, dedent, "} else if (pid > 0) {", indent,
         tap_test_parent(num, test, timeout_secs),
         dedent, fl, "} else { /* ... */", indent,
+        fl, "close(tmpfd);",
+        fl, "unlink(tmpfile);",
+        fl, tap_ok(False, num, test.name(), "fork failed"),
         dedent, fl, "}",
     )
 
@@ -269,9 +276,6 @@ def tap_program(emit, reg: TestRegistry):
     emit(*[
         tap_test_call(num, tst, timeout_secs=10) for num, tst in enumerate(tests)
     ])
-    emit(
-
-    )
     emit(
         fl, "return 0;",
         fl, dedent, "}"
