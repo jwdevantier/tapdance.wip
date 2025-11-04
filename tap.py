@@ -126,7 +126,17 @@ def tap_test_child(emit, num, test: Test, timeout_secs: int|None):
             fl, f'alarm({timeout_secs});',
         )
     emit(
-        fl, f'int result = {test.fn}({test.args});',
+        fl, "Custodian c;",
+        fl, "Allocator a;",
+        fl, "tapd_stdalloc_init(&a);",
+        fl, "custodian_init(&c, NULL, &a);",
+    )
+    if test.args:
+        emit(fl, f'int result = {test.fn}(&c, {test.args});')
+    else:
+        emit(fl, f'int result = {test.fn}(&c);')
+    emit(
+        fl, f'custodian_shutdown(&c);',
         fl, "exit(result);"
     )
 
