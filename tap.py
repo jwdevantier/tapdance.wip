@@ -62,7 +62,7 @@ class TestRegistry:
 
 @component
 def tap_plan(emit, count):
-    emit(fl, f'printf("1..{count}");')
+    emit(fl, f'printf("1..{count}\\n");')
 
 
 @component
@@ -220,7 +220,13 @@ def tap_test_call(emit, num: int, test: Test, timeout_secs: int|None):
 @component
 def tap_program(emit, reg: TestRegistry):
     tests = reg._tests
-    emit(fl, "int main(void) {", indent)
+    emit(
+        fl, "int main(void) {",
+        indent,
+        fl, 'printf("TAP version 14\\n");',
+        fl, tap_plan(len(tests)),
+    )
+
     for num, test in enumerate(tests):
         emit(tap_test_call(num, test, timeout_secs=10))
     emit(
