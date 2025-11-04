@@ -162,6 +162,7 @@ def tap_test_parent(emit, num, test: Test, timeout_secs: int|None):
         fl, dedent, "} /* /WIFSIGNALED */ else {", indent,
         fl, tap_ok(False, num, test.name(), "unknown failure"),
         fl, dedent, "} /* end unknown failure */",
+        # HERE
         fl, dedent, "}",
         fl, 'unlink(tmpfile);',
     )
@@ -171,6 +172,7 @@ def tap_test_parent(emit, num, test: Test, timeout_secs: int|None):
 def tap_test_call(emit, num: int, test: Test, timeout_secs: int|None):
     emit(
         # TODO: alter to gen path based on PID also
+        fl, "{", indent,
         fl, f'char tmpfile[] = "/tmp/tap_test_{num}";',
         fl, 'int tmpfd = mkstemp(tmpfile);',
         fl, 'if (tmpfd == -1) {', indent,
@@ -181,120 +183,24 @@ def tap_test_call(emit, num: int, test: Test, timeout_secs: int|None):
         tap_test_child(num, test, timeout_secs),
         fl, dedent, "} else if (pid > 0) {", indent,
         tap_test_parent(num, test, timeout_secs),
-        dedent, fl, "} else { /* ... */", indent,
+        dedent, fl, "} else { /* parent end */", indent,
         fl, "close(tmpfd);",
         fl, "unlink(tmpfile);",
         fl, tap_ok(False, num, test.name(), "fork failed"),
         dedent, fl, "}",
+        dedent, fl, "}",
+        dedent, fl, "}",
     )
-
-@component
-def tap_test_call_old(emit, num: int, test: Test, timeout_secs: int|None):
-    # TODO: later, given an allocator, write a routine to generate a unique name here...
-    emit(fmt(
-        f'char tmpfile[] = "/tmp/tap_test_{num}";',
-        'int tmpfd = mkstemp(tmpfile);',
-        'if (tmpfd == -1) {',
-        (
-            f'fprintf(stderr, "# failed to create tmpfile for capturing test output (test: {test.name()})\\n");',
-            tap_ok(False, num, test.name(), "tmpfile creation failed"),
-        ),
-        "} else {",
-        (
-            "pid_t pid = fork();",
-            "if (pid == 0) {",
-            (
-                # child process, where the test is executed
-                "dup2(tmpfd, STDERR_FILENO);",
-                "close(tmpfd);",
-                when(
-                    timeout_secs is not None,
-                    fmt(
-                        "/* set timeout alarm */",
-                        f'alarm({timeout_secs})',
-                    )
-                ),
-                f"int result = {test.fn}({test.args});",
-                "exit(result);",
-            ),
-            "} else if (pid > 0) {",
-            (
-                # parent process, wait for result
-                "int status;",
-                "waitpid(pid, &status, 0);",
-                "if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {",
-                (
-                    tap_ok(True, num, test.name()),
-                ),
-                "} else {",
-                (
-                    # test fail, output diagnostics
-                    "if (WIFEXITED(status)) {",
-                    (
-                        tap_ok(False, num, test.name(), "exit code: %d", "WEXITSTATUS(status)")
-                    ),
-                    "} else if (WIFSIGNALED(status)) {",
-                    (
-                        ifelse(
-                            timeout_secs is not None,
-                            fmt(
-                                "if (WTERMSIG(status) == SIGALRM) {",
-                                (
-                                    tap_ok(False, num, test.name(), f"timeout after {timeout_secs}s"),
-                                ),
-                                "} else {",
-                                (
-                                    tap_ok(False, num, test.name(), "killed by signal %d", "WTERMSIG(status)")
-                                ),
-                            ),
-                            fmt(
-                                tap_ok(False, num, test.name(), "killed by signal %d", "WTERMSIG(status)")
-                            )
-                        )
-                    ),
-                    "} else {",
-                    (
-                        tap_ok(False, num, test.name(), "unknown failure")
-                    ),
-                    "}",
-                ),
-                "}",  # end of error-handling
-            ),
-            "}",  # NOTE: end of parent process clause
-
-            # Only gets here in parent process, child exits early.
-            # -- Read diagnostics from temp file
-
-        )
-    ))
 
 
 @component
 def tap_program(emit, reg: TestRegistry):
     tests = reg._tests
     emit(fl, "int main(void) {", indent)
-    emit(*[
-        tap_test_call(num, tst, timeout_secs=10) for num, tst in enumerate(tests)
-    ])
+    for num, test in enumerate(tests):
+        emit(tap_test_call(num, test, timeout_secs=10))
     emit(
         fl, "return 0;",
         fl, dedent, "}"
     )
 
-
-@component
-def tap_program_old(emit, registry: TestRegistry):
-    # emit(fl, nl, nl)
-    tests = registry._tests
-
-    # stdio, stdlib, string.h
-    emit(fmt(
-        "int main(void) {",
-        (
-            # tap_plan(len(tests)),
-            # # call each test.
-            # *[emit(tap_test_call(num, tst) for num, tst in enumerate(tests))],
-            "return 0;"
-        ),
-        "}",
-    ))
