@@ -163,6 +163,20 @@ def tap_test_parent(emit, num, test: Test, timeout_secs: int|None):
         fl, tap_ok(False, num, test.name(), "unknown failure"),
         fl, dedent, "} /* end unknown failure */",
         # HERE
+        fl, "lseek(tmpfd, 0, SEEK_SET);",
+        fl, 'FILE *tmpfp = fdopen(tmpfd, "r");',
+        fl, 'if (!tmpfd) {', indent,
+        fl, tap_ok(False, num, test.name(), "failed to open output file"),
+        fl, 'close(tmpfd);',
+        fl, dedent, '}',
+        fl, 'char line_buf[1024];',
+        fl, 'while (fgets(line_buf, sizeof(line_buf), tmpfp)) {',
+        indent,
+        fl, 'size_t len = strlen(line_buf);',
+        dedent,
+        fl, '}',
+
+
         fl, dedent, "}",
         fl, 'unlink(tmpfile);',
     )
