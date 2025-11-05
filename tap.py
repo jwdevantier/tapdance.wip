@@ -179,41 +179,56 @@ def tap_dump_test_output(emit, tmpfd):
         "}",
     ))
 
+
+@component
+def tap_test_parent_timeout(emit, num, test: Test, timeout_secs: int|None):
+    if timeout_secs is None:
+        emit(fmt(
+            tap_ok(False, num, test.name(), "killed by signal %d", "WTERMSIG(status)")
+        ))
+        return
+
+    emit(fmt(
+        "if (WTERMSIG(status) == SIGALRM) {",
+        (
+            tap_ok(False, num, test.name(), f"timeout after {timeout_secs}s"),
+        ),
+        "} else {",
+        (
+            tap_ok(False, num, test.name(), "killed by signal %d", "WTERMSIG(status)"),
+        ),
+        "}",
+    ))
+
+
 @component
 def tap_test_parent(emit, num, test: Test, timeout_secs: int|None):
-    emit(
-        fl, "int status;",
-        fl, "waitpid(pid, &status, 0);",
+    emit(fmt(
+        "int status;",
+        "waitpid(pid, &status, 0);",
         nl,
-        nl,
-        fl, "if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {",
-        fl, indent,
-        tap_ok(True, num, test.name()),
-        fl, dedent, "} else {", indent,
-        fl, "if (WIFEXITED(status)) {", indent,
-        fl, tap_ok(False, num, test.name(), "exit code: %d", "WEXITSTATUS(status)"),
-        fl, dedent, "} else if (WIFSIGNALED(status)) {", indent
-    )
-    if timeout_secs is not None:
-        emit(
-            fl, "if (WTERMSIG(status) == SIGALRM) {", indent,
-            fl, tap_ok(False, num, test.name(), f"timeout after {timeout_secs}s"),
-            fl, dedent, "} else {", indent,
-            fl, tap_ok(False, num, test.name(), "killed by signal %d", "WTERMSIG(status)"),
-            fl, dedent, "}"
-        )
-    else:
-        emit(
-            fl, tap_ok(False, num, test.name(), "killed by signal %d", "WTERMSIG(status)")
-        )
-    emit(
-        fl, dedent, "} else {", indent,
-        fl, tap_ok(False, num, test.name(), "unknown failure"),
-        fl, dedent, "}",
-        tap_dump_test_output("tmpfd"),
-        fl, dedent, "}",
-        fl, 'unlink(tmpfile);',
-    )
+        "if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {",
+        (tap_ok(True, num, test.name()),),
+        "} else {",
+        (
+            "if (WIFEXITED(status)) {",
+            (
+                tap_ok(False, num, test.name(), "exit code: %d", "WEXITSTATUS(status)"),
+            ),
+            "} else if (WIFSIGNALED(status)) {",
+            (
+                tap_test_parent_timeout(num, test, timeout_secs),
+            ),
+            "} else {",
+            (
+                tap_ok(False, num, test.name(), "unknown failure"),
+            ),
+            "}",
+            tap_dump_test_output("tmpfd"),
+        ),
+        "}",
+        "unlink(tmpfile);",
+    ))
 
 
 @component
