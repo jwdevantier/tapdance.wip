@@ -143,6 +143,58 @@ def tap_test_child(emit, num, test: Test, timeout_secs: int|None):
 
 
 @component
+def tap_dump_test_output(emit, tmpfd):
+    """
+    Reads captured stdout/stderr from tmpfd and outputs it as TAP diagnostics.
+    Each line is prefixed with '#: ' to distinguish from regular TAP output.
+    Handles long lines (>buffer size) and missing trailing newlines safely.
+    """
+    emit(
+        fl, "lseek(tmpfd, 0, SEEK_SET);",
+        fl, 'FILE *tmpfp = fdopen(tmpfd, "r");',
+        fl, 'if (!tmpfp) {',
+        indent,
+        fl, 'fprintf(stderr, "# Failed to open test output for reading\\n");',
+        fl, 'close(tmpfd);',
+        dedent,
+        fl, 
+        fl, '} else {',
+        indent,
+        fl, 'const size_t BUFLEN = 1024;',
+        fl, 'char line_buf[BUFLEN];',
+        fl, 'int fresh_line = 1;',
+        fl, 'while (fgets(line_buf, BUFLEN, tmpfp)) {',
+        indent,
+        fl, 'size_t len = strlen(line_buf);',
+        fl, 'if (fresh_line) {',
+        indent,
+        fl, 'printf("#: ");',
+        fl, 'fresh_line = 0;',
+        dedent,
+        fl, '}',
+        fl, 'printf("%s", line_buf);',
+        fl, '/* Check if we reached end of line */',
+        fl, 'if (len > 0 && line_buf[len-1] == \'\\n\') {',
+        indent,
+        fl, 'fresh_line = 1;',
+        dedent,
+        fl, '} else if (len < BUFLEN - 1) {',
+        indent,
+        fl, '/* EOF without trailing newline - add one to preserve TAP integrity */',
+        fl, 'printf("\\n");',
+        fl, 'fresh_line = 1;',
+        dedent,
+        fl, '}',
+        fl, '/* else: partial line (buffer full), continue reading */',
+        dedent,
+        fl, '}',
+        fl, 'fclose(tmpfp);',
+        dedent,
+        fl, '}',
+    )
+
+
+@component
 def tap_test_parent(emit, num, test: Test, timeout_secs: int|None):
     emit(
         fl, "int status;",
@@ -170,24 +222,10 @@ def tap_test_parent(emit, num, test: Test, timeout_secs: int|None):
             fl, tap_ok(False, num, test.name(), "killed by signal %d", "WTERMSIG(status)")
         )
     emit(
-        fl, dedent, "} /* /WIFSIGNALED */ else {", indent,
+        fl, dedent, "} else {", indent,
         fl, tap_ok(False, num, test.name(), "unknown failure"),
-        fl, dedent, "} /* end unknown failure */",
-        # HERE
-        fl, "lseek(tmpfd, 0, SEEK_SET);",
-        fl, 'FILE *tmpfp = fdopen(tmpfd, "r");',
-        fl, 'if (!tmpfp) {', indent,
-        fl, tap_ok(False, num, test.name(), "failed to open output file"),
-        fl, 'close(tmpfd);',
-        fl, dedent, '} else {', indent,
-        fl, 'char line_buf[1024];',
-        fl, 'while (fgets(line_buf, sizeof(line_buf), tmpfp)) {', indent,
-        fl, 'printf("#: %s", line_buf);',
-        fl, dedent, '}',
-        fl, 'fclose(tmpfp);',
-        fl, dedent, '}',
-
-
+        fl, dedent, "}",
+        tap_dump_test_output("tmpfd"),
         fl, dedent, "}",
         fl, 'unlink(tmpfile);',
     )
@@ -208,7 +246,7 @@ def tap_test_call(emit, num: int, test: Test, timeout_secs: int|None):
         tap_test_child(num, test, timeout_secs),
         fl, dedent, "} else if (pid > 0) {", indent,
         tap_test_parent(num, test, timeout_secs),
-        dedent, fl, "} else { /* parent end */", indent,
+        dedent, fl, "} else {", indent,
         fl, "close(tmpfd);",
         fl, "unlink(tmpfile);",
         fl, tap_ok(False, num, test.name(), "fork failed"),
