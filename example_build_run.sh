@@ -1,12 +1,7 @@
 #!/usr/bin/env sh
 set -ex
 
-python crowbar.py lol.c
-gcc -O0 \
-    allocator.c \
-    custodian.c \
-    lol.c \
-    -o lol
-
+meson setup builddir
+meson compile -C builddir
 echo "\n\n--execute--\n"
-./lol
+./builddir/lol

@@ -28,10 +28,12 @@
           name = "py3";
           nativeBuildInputs = with pkgs;
             [
+              python3
               pyright
+              meson
+              ninja
             ];
           buildInputs = with pkgs; [
-            python3
             stdenv.cc.cc.lib
             gcc-unwrapped.lib
           ];

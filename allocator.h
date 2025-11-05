@@ -19,3 +19,4 @@ void *allocator_alloc(Allocator *a, size_t size);
 void allocator_free(Allocator *a, void *ptr);
 void *allocator_realloc(Allocator *a, void *ptr, size_t new_size);
 #endif /* TAPDANCE_ALLOCATOR_H */
+

@@ -27,7 +27,7 @@ void *allocator_alloc(Allocator *a, size_t size) {
 }
 
 void allocator_free(Allocator *a, void *ptr) {
-    return a->free(a->ctx, ptr);
+    a->free(a->ctx, ptr);
 }
 
 void *allocator_realloc(Allocator *a, void *ptr, size_t new_size) {

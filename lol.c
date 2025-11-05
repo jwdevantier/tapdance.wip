@@ -123,7 +123,7 @@ int main(void) {
           }
         }
         unlink(tmpfile);
-      } else { /* parent end */
+      } else {
         close(tmpfd);
         unlink(tmpfile);
         printf("not ok 1 - test_program() (fork failed)\n");
@@ -198,7 +198,7 @@ int main(void) {
           }
         }
         unlink(tmpfile);
-      } else { /* parent end */
+      } else {
         close(tmpfd);
         unlink(tmpfile);
         printf("not ok 2 - test_add(2, 3, 5) (fork failed)\n");
@@ -273,7 +273,7 @@ int main(void) {
           }
         }
         unlink(tmpfile);
-      } else { /* parent end */
+      } else {
         close(tmpfd);
         unlink(tmpfile);
         printf("not ok 3 - test_segfault() (fork failed)\n");
@@ -348,7 +348,7 @@ int main(void) {
           }
         }
         unlink(tmpfile);
-      } else { /* parent end */
+      } else {
         close(tmpfd);
         unlink(tmpfile);
         printf("not ok 4 - test_add(2, 3, 6) (fork failed)\n");
@@ -423,7 +423,7 @@ int main(void) {
           }
         }
         unlink(tmpfile);
-      } else { /* parent end */
+      } else {
         close(tmpfd);
         unlink(tmpfile);
         printf("not ok 5 - test_add(4, 8, 12) (fork failed)\n");
