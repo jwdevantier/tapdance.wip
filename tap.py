@@ -13,9 +13,10 @@ def fmt(emit, *elems, fl=True):
     fltok = crowbar.fl if fl else None
     for e in elems:
         if isinstance(e, tuple):
-            fmt(indent, *e, dedent, fl=fl)
+            args = [indent, *e, dedent]
+            emit(fmt(*args, fl=fl))
         elif isinstance(e, list):
-            fmt(*e, fl=False)
+            emit(fltok, fmt(*e, fl=False))
         else:
             emit(fltok, e)
 
@@ -101,45 +102,31 @@ def tap_includes(emit):
 
 
 @component
-def when(emit, cond, *elems):
-    if cond:
-        emit(*elems)
-
-
-@component
-def ifelse(emit, cond, ifbranch, elsebranch):
-    if cond:
-        emit(ifbranch)
-    else:
-        emit(elsebranch)
-
-
-@component
 def tap_test_child(emit, num, test: Test, timeout_secs: int|None):
-    emit(
-        fl, "dup2(tmpfd, STDERR_FILENO);",
-        fl, "dup2(tmpfd, STDOUT_FILENO);",
-        fl, "close(tmpfd);",
-    )
+    emit(fmt(
+        "dup2(tmpfd, STDERR_FILENO);",
+        "dup2(tmpfd, STDOUT_FILENO);",
+        "close(tmpfd);"
+    ))
     if timeout_secs is not None:
-        emit(
-            fl, "/* set timeout alarm */",
-            fl, f'alarm({timeout_secs});',
-        )
-    emit(
-        fl, "Custodian c;",
-        fl, "Allocator a;",
-        fl, "tapd_stdalloc_init(&a);",
-        fl, "custodian_init(&c, NULL, &a);",
-    )
+        emit(fmt(
+            "/* set timeout alarm */",
+            f'alarm({timeout_secs});',
+        ))
+    emit(fmt(
+        "Allocator a;",
+        "tapd_stdalloc_init(&a);",
+        "Custodian c;",
+        "custodian_init(&c, NULL, &a);"
+    ))
     if test.args:
         emit(fl, f'int result = {test.fn}(&c, {test.args});')
     else:
         emit(fl, f'int result = {test.fn}(&c);')
-    emit(
-        fl, f'custodian_shutdown(&c);',
-        fl, "exit(result);"
-    )
+    emit(fmt(
+        f'custodian_shutdown(&c);',
+        "exit(result);"
+    ))
 
 
 @component
@@ -149,50 +136,48 @@ def tap_dump_test_output(emit, tmpfd):
     Each line is prefixed with '#: ' to distinguish from regular TAP output.
     Handles long lines (>buffer size) and missing trailing newlines safely.
     """
-    emit(
-        fl, "lseek(tmpfd, 0, SEEK_SET);",
-        fl, 'FILE *tmpfp = fdopen(tmpfd, "r");',
-        fl, 'if (!tmpfp) {',
-        indent,
-        fl, 'fprintf(stderr, "# Failed to open test output for reading\\n");',
-        fl, 'close(tmpfd);',
-        dedent,
-        fl, 
-        fl, '} else {',
-        indent,
-        fl, 'const size_t BUFLEN = 1024;',
-        fl, 'char line_buf[BUFLEN];',
-        fl, 'int fresh_line = 1;',
-        fl, 'while (fgets(line_buf, BUFLEN, tmpfp)) {',
-        indent,
-        fl, 'size_t len = strlen(line_buf);',
-        fl, 'if (fresh_line) {',
-        indent,
-        fl, 'printf("#: ");',
-        fl, 'fresh_line = 0;',
-        dedent,
-        fl, '}',
-        fl, 'printf("%s", line_buf);',
-        fl, '/* Check if we reached end of line */',
-        fl, 'if (len > 0 && line_buf[len-1] == \'\\n\') {',
-        indent,
-        fl, 'fresh_line = 1;',
-        dedent,
-        fl, '} else if (len < BUFLEN - 1) {',
-        indent,
-        fl, '/* EOF without trailing newline - add one to preserve TAP integrity */',
-        fl, 'printf("\\n");',
-        fl, 'fresh_line = 1;',
-        dedent,
-        fl, '}',
-        fl, '/* else: partial line (buffer full), continue reading */',
-        dedent,
-        fl, '}',
-        fl, 'fclose(tmpfp);',
-        dedent,
-        fl, '}',
-    )
-
+    emit(fmt(
+        "lseek(tmpfd, 0, SEEK_SET);",
+        'FILE *tmpfp = fdopen(tmpfd, "r");',
+        'if (!tmpfp) {',
+        (
+            'fprintf(stderr, "# Failed to open test output for reading\\n");',
+            'close(tmpfd);',
+        ),
+        '} else {',
+        (
+            'const size_t BUFLEN = 1024;',
+            'char line_buf[BUFLEN];',
+            'int fresh_line = 1;',
+            'while (fgets(line_buf, BUFLEN, tmpfp)) {',
+            (
+                'size_t len = strlen(line_buf);',
+                'if (fresh_line) {',
+                (
+                    'printf("#: ");',
+                    'fresh_line = 0;',
+                ),
+                "}",
+                'printf("%s", line_buf);',
+                '/* Check if we reached end of line */',
+                'if (len > 0 && line_buf[len-1] == \'\\n\') {',
+                (
+                    'fresh_line = 1;',
+                ),
+                '} else if (len < BUFLEN - 1) {',
+                (
+                    '/* EOF without trailing newline - add one to preserve TAP integrity */',
+                    'printf("\\n");',
+                    'fresh_line = 1;',
+                ),
+                "}",
+                '/* else: partial line (buffer full), continue reading */',
+            ),
+            "}",
+            "fclose(tmpfp);",
+        ),
+        "}",
+    ))
 
 @component
 def tap_test_parent(emit, num, test: Test, timeout_secs: int|None):
@@ -233,28 +218,32 @@ def tap_test_parent(emit, num, test: Test, timeout_secs: int|None):
 
 @component
 def tap_test_call(emit, num: int, test: Test, timeout_secs: int|None):
-    emit(
-        # TODO: alter to gen path based on PID also
-        fl, "{", indent,
-        fl, f'char tmpfile[] = "/tmp/tap_test_{num}";',
-        fl, 'int tmpfd = mkstemp(tmpfile);',
-        fl, 'if (tmpfd == -1) {', indent,
-        tap_ok(False, num, test.name(), "tmpfile creation failed"),
-        dedent, fl, "} else {", indent,
-        fl, "pid_t pid = fork();",
-        fl, "if (pid == 0) {", indent,
-        tap_test_child(num, test, timeout_secs),
-        fl, dedent, "} else if (pid > 0) {", indent,
-        tap_test_parent(num, test, timeout_secs),
-        dedent, fl, "} else {", indent,
-        fl, "close(tmpfd);",
-        fl, "unlink(tmpfile);",
-        fl, tap_ok(False, num, test.name(), "fork failed"),
-        dedent, fl, "}",
-        dedent, fl, "}",
-        dedent, fl, "}",
-    )
-
+    emit(fmt(
+        "{",
+        (
+            f'char tmpfile[] = "/tmp/tap_test_{num}";',
+            'int tmpfd = mkstemp(tmpfile);',
+            'if (tmpfd == -1) {',
+            (tap_ok(False, num, test.name(), "tmpfile creation failed"),),
+            "} else {",
+            (
+                "pid_t pid = fork();",
+                "if (pid == 0) {",
+                (tap_test_child(num, test, timeout_secs),),
+                "} else if (pid > 0) {",
+                (tap_test_parent(num, test, timeout_secs),),
+                "} else {",
+                (
+                    "close(tmpfd);",
+                    "unlink(tmpfile);",
+                    tap_ok(False, num, test.name(), "fork failed"),
+                ),
+                "}",
+            ),
+            "}",
+        ),
+        "}",
+    ))
 
 @component
 def tap_program(emit, reg: TestRegistry):

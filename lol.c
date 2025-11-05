@@ -68,9 +68,9 @@ int main(void) {
         close(tmpfd);
         /* set timeout alarm */
         alarm(10);
-        Custodian c;
         Allocator a;
         tapd_stdalloc_init(&a);
+        Custodian c;
         custodian_init(&c, NULL, &a);
         int result = test_program(&c);
         custodian_shutdown(&c);
@@ -143,9 +143,9 @@ int main(void) {
         close(tmpfd);
         /* set timeout alarm */
         alarm(10);
-        Custodian c;
         Allocator a;
         tapd_stdalloc_init(&a);
+        Custodian c;
         custodian_init(&c, NULL, &a);
         int result = test_add(&c, 2, 3, 5);
         custodian_shutdown(&c);
@@ -218,9 +218,9 @@ int main(void) {
         close(tmpfd);
         /* set timeout alarm */
         alarm(10);
-        Custodian c;
         Allocator a;
         tapd_stdalloc_init(&a);
+        Custodian c;
         custodian_init(&c, NULL, &a);
         int result = test_segfault(&c);
         custodian_shutdown(&c);
@@ -293,9 +293,9 @@ int main(void) {
         close(tmpfd);
         /* set timeout alarm */
         alarm(10);
-        Custodian c;
         Allocator a;
         tapd_stdalloc_init(&a);
+        Custodian c;
         custodian_init(&c, NULL, &a);
         int result = test_add(&c, 2, 3, 6);
         custodian_shutdown(&c);
@@ -368,9 +368,9 @@ int main(void) {
         close(tmpfd);
         /* set timeout alarm */
         alarm(10);
-        Custodian c;
         Allocator a;
         tapd_stdalloc_init(&a);
+        Custodian c;
         custodian_init(&c, NULL, &a);
         int result = test_add(&c, 4, 8, 12);
         custodian_shutdown(&c);
