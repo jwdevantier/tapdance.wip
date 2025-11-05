@@ -175,7 +175,7 @@ def tap_test_parent(emit, num, test: Test, timeout_secs: int|None):
         # HERE
         fl, "lseek(tmpfd, 0, SEEK_SET);",
         fl, 'FILE *tmpfp = fdopen(tmpfd, "r");',
-        fl, 'if (!tmpfd) {', indent,
+        fl, 'if (!tmpfp) {', indent,
         fl, tap_ok(False, num, test.name(), "failed to open output file"),
         fl, 'close(tmpfd);',
         fl, dedent, '}',
