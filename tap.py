@@ -227,7 +227,7 @@ def tap_program(emit, reg: TestRegistry):
         fl, tap_plan(len(tests)),
     )
 
-    for num, test in enumerate(tests):
+    for num, test in enumerate(tests, start=1):
         emit(tap_test_call(num, test, timeout_secs=10))
     emit(
         fl, "return 0;",
