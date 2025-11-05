@@ -118,6 +118,7 @@ def ifelse(emit, cond, ifbranch, elsebranch):
 def tap_test_child(emit, num, test: Test, timeout_secs: int|None):
     emit(
         fl, "dup2(tmpfd, STDERR_FILENO);",
+        fl, "dup2(tmpfd, STDOUT_FILENO);",
         fl, "close(tmpfd);",
     )
     if timeout_secs is not None:
@@ -178,13 +179,13 @@ def tap_test_parent(emit, num, test: Test, timeout_secs: int|None):
         fl, 'if (!tmpfp) {', indent,
         fl, tap_ok(False, num, test.name(), "failed to open output file"),
         fl, 'close(tmpfd);',
-        fl, dedent, '}',
+        fl, dedent, '} else {', indent,
         fl, 'char line_buf[1024];',
-        fl, 'while (fgets(line_buf, sizeof(line_buf), tmpfp)) {',
-        indent,
-        fl, 'size_t len = strlen(line_buf);',
-        dedent,
-        fl, '}',
+        fl, 'while (fgets(line_buf, sizeof(line_buf), tmpfp)) {', indent,
+        fl, 'printf("#: %s", line_buf);',
+        fl, dedent, '}',
+        fl, 'fclose(tmpfp);',
+        fl, dedent, '}',
 
 
         fl, dedent, "}",
