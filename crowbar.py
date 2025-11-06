@@ -92,7 +92,7 @@ import tempfile
 import sys
 import os
 
-__version__ = "0.2.1"
+__version__ = "0.3.0"
 __description__ = "Crowbar - When clever hacking fails, crude whacking works!"
 
 
@@ -108,6 +108,7 @@ class _Marker:
 # Global marker values
 nl = _Marker("newline")
 fl = _Marker("freshline")
+lc = _Marker("line-continue")
 indent = _Marker("indent")
 dedent = _Marker("dedent")
 
@@ -257,50 +258,40 @@ class Emitter:
         Returns:
             None - all output is passed to the `writer`
         """
-        self.fresh_line = True
         self.writer = writer
-        self.indent_level = 0
         self.indent_step = indent_step
         self.base_indent = base_indent
+        self.reset()
+
+    def reset(self) -> None:
+        self.indent = True
+        self.newline = False
+        self.indent_level = 0
+        self._first = True
 
     def get_indent_string(self) -> str:
         return self.base_indent + (self.indent_step * self.indent_level)
 
-    def add_to_buffer(self, text: str, force_newline: bool = False) -> None:
-        if not text:
-            return
-
-        if self.fresh_line:
-            self.writer(self.get_indent_string())
-
-        self.writer(text)
-
-        if force_newline:
-            self.writer("\n")
-            self.fresh_line = True
-        else:
-            self.fresh_line = False
-
     def __call__(self, *args: Any) -> None:
         for arg in args:
             if isinstance(arg, _Marker):
-                if arg == nl:
+                if arg == lc:
+                    self.indent = self.newline = False
+                elif arg == fl and not self._first:
+                    # first line is by definition a FL, don't change the emitter state
+                    self.indent = self.newline = True
+                elif arg == nl:
                     self.writer("\n")
-                    self.fresh_line = True
-
-                elif arg == fl:
-                    if not self.fresh_line:
-                        self.writer("\n")
-                        self.fresh_line = True
-
+                    self.indent = True
+                    self.newline = not self._first
                 elif arg == indent:
                     self.indent_level += 1
-
                 elif arg == dedent:
                     self.indent_level = max(0, self.indent_level - 1)
-
+            elif isinstance(arg, list):
+                self.__call__(indent, *arg, dedent)
             elif isinstance(arg, ComponentClosure):
-                # component with already provided ctx, provide emit function
+                # component with context, provide emit function
                 arg(self.__call__)
             elif arg is None:
                 continue
@@ -308,10 +299,14 @@ class Emitter:
                 raise TypeError(
                     f"emit() does not accept raw components - you must call it first, provide a context"
                 )
-
             else:
-                # String or other - add to buffer WITHOUT automatic newline
-                self.add_to_buffer(str(arg), force_newline=False)
+                if self.newline:
+                    self.writer("\n")
+                if self.indent:
+                    self.writer(self.get_indent_string())
+                self.writer(str(arg))
+                self.indent = self.newline = True
+                self._first = False
 
 
 def _block_parser(
@@ -437,8 +432,10 @@ class CrowbarPreprocessor:
             "component": component,
             "nl": nl,
             "fl": fl,
+            "lc": lc,
             "indent": indent,
             "dedent": dedent,
+            "indent_by": indent_step,
             "__builtins__": __builtins__,
             # Include previously imported modules and globals
             **self.crowbar_globals,
@@ -447,7 +444,9 @@ class CrowbarPreprocessor:
         # Collect rendered output
         output_parts: List[str] = []
         e = Emitter(
-            writer=output_parts.append, base_indent=base_indent, indent_step=indent_step
+            writer=output_parts.append,
+            base_indent=base_indent,
+            indent_step=exec_globals["indent_by"],
         )
 
         # convenience method, allows calling emit directly in code blocks
@@ -525,6 +524,11 @@ def main() -> None:
     )
     parser.add_argument("input_file", help="file to process")
     parser.add_argument(
+        "--indent-by",
+        default="   ",
+        help="line prefix to add for each level of indentation",
+    )
+    parser.add_argument(
         "output_file",
         nargs="?",
         default=None,
@@ -546,7 +550,10 @@ def main() -> None:
     processor = CrowbarPreprocessor()
     try:
         processor.process_file(
-            args.input_file, args.output_file, omit_code_blocks=args.no_code_blocks
+            args.input_file,
+            args.output_file,
+            indent_step=args.indent_by,
+            omit_code_blocks=args.no_code_blocks,
         )
     except Exception as e:
         print(f"Error processing file: {e}")
@@ -563,6 +570,7 @@ __all__ = [
     "Emitter",
     "nl",
     "fl",
+    "lc",
     "indent",
     "dedent",
     "CrowbarError",
