@@ -12,11 +12,12 @@ crowbar_script = files('crowbar.py')
 # Find libraries that might be needed
 # m_dep = meson.get_compiler('c').find_library('m', required : false)
 # pthread_dep = dependency('threads', required : false)
+vfn = dependency('libvfn', required: true)
 
 # Define your test programs with optional dependencies
 # Format: [name, [list of dependencies]]
 test_programs = [
-  ['lol', []],
+  ['lol', [vfn]],
   #['math_test', [m_dep]],
   #['threaded_test', [pthread_dep, m_dep]],
 ]

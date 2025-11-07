@@ -18,7 +18,28 @@
     },
     "root": {
       "inputs": {
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs",
+        "vfn": "vfn"
+      }
+    },
+    "vfn": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1762434769,
+        "narHash": "sha256-zYCOqRz6GPleOjFs/VF7vN1vW9TcZv4iR+YfOF2Yoyg=",
+        "owner": "SamsungDS",
+        "repo": "libvfn",
+        "rev": "f2076fdc835e21515f4cc1f755c20045b966c3c5",
+        "type": "github"
+      },
+      "original": {
+        "owner": "SamsungDS",
+        "repo": "libvfn",
+        "type": "github"
       }
     }
   },

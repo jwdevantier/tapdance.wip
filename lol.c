@@ -5,6 +5,7 @@
 #include <assert.h>
 #include "allocator.h"
 #include "custodian.h"
+#include <sys/wait.h>
 // <<crowbar
 // from tap import *
 // >>
