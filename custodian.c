@@ -41,7 +41,7 @@ void custodian_init(Custodian *c, Custodian *parent, Allocator *a) {
 }
 
 void *custodian_alloc(Custodian *c, size_t size) {
-   CustodianEntry *entry = allocator_alloc(c->a, size);
+   CustodianEntry *entry = allocator_alloc(c->a, sizeof(CustodianEntry) + size);
    if (!entry) {
       custodian_abort(c);
       return NULL;
